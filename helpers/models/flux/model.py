@@ -907,6 +907,32 @@ class Flux(ImageModelFoundation):
                     "proj_mlp",
                     "proj_out",
                 ]
+            elif self.config.flux_lora_target == "fal-kontext":
+                # fal-ai kontext variant - same as in adapter.py
+                return [
+                    # Double blocks (MMDiT blocks):
+                    "to_q",
+                    "to_k",
+                    "to_v",
+                    "to_qkv",
+                    "add_q_proj",
+                    "add_k_proj",
+                    "add_v_proj",
+                    "add_qkv_proj",
+                    "to_out.0",
+                    "to_add_out",
+                    "norm1.linear",
+                    "norm1_context.linear",
+                    # Single blocks (DiT blocks):
+                    "to_qkv",
+                    "to_q",
+                    "to_k",
+                    "to_v",
+                    "to_out.0",
+                    "norm.linear",
+                    # Global:
+                    "proj_out",
+                ]
             elif self.config.flux_lora_target == "tiny":
                 # From TheLastBen
                 # https://www.reddit.com/r/StableDiffusion/comments/1f523bd/good_flux_loras_can_be_less_than_45mb_128_dim/
