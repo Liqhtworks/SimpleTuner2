@@ -184,10 +184,11 @@ def get_argument_parser():
             "ai-toolkit",
             "tiny",
             "nano",
-            "fal",
+            "dsy",
             "daisy",
             "daisy-tiny",
             "daisy-nano",
+            "dsy-kontext",
             # control / controlnet
             "all+ffs+embedder",
             "all+ffs+embedder+controlnet",

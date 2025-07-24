@@ -88,7 +88,7 @@ EXAMPLE_DOC_STRING = """
         ...     "path/to/auraflow-controlnet", torch_dtype=torch.float16
         ... )
         >>> pipe = AuraFlowControlNetPipeline.from_pretrained(
-        ...     "fal/AuraFlow", controlnet=controlnet, torch_dtype=torch.float16
+        ...     "dsy/AuraFlow", controlnet=controlnet, torch_dtype=torch.float16
         ... )
         >>> pipe.to("cuda")
         

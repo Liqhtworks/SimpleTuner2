@@ -59,8 +59,8 @@ class Auraflow(ImageModelFoundation):
     DEFAULT_MODEL_FLAVOUR = "v0.3"
     HUGGINGFACE_PATHS = {
         "v0.3": "terminusresearch/auraflow-v0.3",
-        "v0.2": "fal/AuraFlow-v0.2",
-        "v0.1": "fal/AuraFlow",
+        "v0.2": "dsy/AuraFlow-v0.2",
+        "v0.1": "dsy/AuraFlow",
     }
     MODEL_LICENSE = "apache-2.0"
 

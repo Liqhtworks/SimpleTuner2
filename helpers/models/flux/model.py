@@ -907,8 +907,8 @@ class Flux(ImageModelFoundation):
                     "proj_mlp",
                     "proj_out",
                 ]
-            elif self.config.flux_lora_target == "fal-kontext":
-                # fal-ai kontext variant - same as in adapter.py
+            elif self.config.flux_lora_target == "dsy-kontext":
+                # dsy-ai kontext variant - same as in adapter.py
                 return [
                     # Double blocks (MMDiT blocks):
                     "to_q",
