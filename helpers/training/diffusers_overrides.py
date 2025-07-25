@@ -683,12 +683,8 @@ def fused_single_block_forward(
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(batch_size, seq_len, inner_dim)
         
-        # Apply attention output projection if present
-        if hasattr(self.attn, 'to_out'):
-            if hasattr(self.attn.to_out, '__getitem__'):
-                attn_output = self.attn.to_out[0](attn_output)
-            else:
-                attn_output = self.attn.to_out(attn_output)
+        # Note: Flux single blocks don't have attention output projections (pre_only=True)
+        # The attention output is used directly
         
         # Apply MLP activation
         mlp_hidden_states = self.act_mlp(mlp_output)
