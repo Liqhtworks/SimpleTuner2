@@ -179,6 +179,18 @@ class Flux(ImageModelFoundation):
         else:
             logger.warning("Model does not support QKV projection fusing. Skipping.")
 
+        # Apply FAL kontext fusion if requested
+        if hasattr(self.config, "flux_lora_target") and self.config.flux_lora_target == "fal-kontext-fused":
+            from helpers.training.diffusers_overrides import (
+                fuse_all_blocks_fal_kontext,
+                apply_fal_kontext_forward_overrides,
+            )
+            
+            logger.info("Applying additional FAL kontext fusion for QKV+MLP...")
+            fusion_count = fuse_all_blocks_fal_kontext(self.model, permanent=True)
+            apply_fal_kontext_forward_overrides(self.model)
+            logger.info(f"FAL kontext fusion complete: {fusion_count}")
+
         self.unwrap_model(model=self.model).set_attn_processor(attn_processor)
         if self.controlnet is not None:
             logger.debug("Fusing QKV projections in the ControlNet..")
@@ -907,8 +919,8 @@ class Flux(ImageModelFoundation):
                     "proj_mlp",
                     "proj_out",
                 ]
-            elif self.config.flux_lora_target == "dsy-kontext":
-                # dsy-ai kontext variant - same as in adapter.py
+            elif self.config.flux_lora_target == "fal-kontext":
+                # fal-ai kontext variant - same as in adapter.py
                 return [
                     # Double blocks (MMDiT blocks):
                     "to_q",
@@ -932,6 +944,34 @@ class Flux(ImageModelFoundation):
                     "norm.linear",
                     # Global:
                     "proj_out",
+                ]
+            elif self.config.flux_lora_target == "fal-kontext-fused":
+                # Full FAL kontext fusion - matches adapter.py
+                return [
+                    # Single blocks - FAL's linear1 (QKV + MLP fused)
+                    "linear1",
+                    "attn.to_out.0",
+                    "norm.linear",
+                    # Double blocks - FAL-style aliases
+                    "img_attn_qkv",
+                    "txt_attn_qkv",
+                    "img_attn_proj",
+                    "txt_attn_proj", 
+                    "img_mod_lin",
+                    "txt_mod_lin",
+                    "img_mlp_0",
+                    "img_mlp_2",
+                    "txt_mlp_0",
+                    "txt_mlp_2",
+                    # Global
+                    "proj_out",
+                    # Fallback
+                    "to_qkv",
+                    "add_qkv_proj",
+                    "to_out.0",
+                    "to_add_out",
+                    "norm1.linear",
+                    "norm1_context.linear",
                 ]
             elif self.config.flux_lora_target == "tiny":
                 # From TheLastBen

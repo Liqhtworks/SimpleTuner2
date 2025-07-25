@@ -77,8 +77,8 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "proj_mlp",
                 "proj_out",
             ]
-        elif args.flux_lora_target == "dsy":
-            # from dsy-ai, possibly required to continue finetuning one.
+        elif args.flux_lora_target == "fal":
+            # from fal-ai, possibly required to continue finetuning one.
             target_modules = [
                 "to_q",
                 "to_k",
@@ -93,8 +93,8 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "ff_context.net.0.proj",
                 "ff_context.net.2",
             ]
-        elif args.flux_lora_target == "dsy-kontext":
-            # dsy-ai kontext variant with fused QKV projections and modulation layers
+        elif args.flux_lora_target == "fal-kontext":
+            # fal-ai kontext variant with fused QKV projections and modulation layers
             # This targets the same layers as the analyzed LoRA structure:
             # - Fused QKV projections for image/text attention
             # - Modulation linear layers for double/single blocks
@@ -125,8 +125,40 @@ def determine_adapter_target_modules(args, unet, transformer):
                 # Global:
                 "proj_out",  # Final output projection
             ]
+        elif args.flux_lora_target == "fal-kontext-fused":
+            # Full FAL kontext fusion with QKV+MLP combined in single blocks
+            # and FAL-style aliases for double blocks
+            target_modules = [
+                # Single blocks - FAL's linear1 (QKV + MLP fused)
+                "linear1",  # 7x output (3x QKV + 4x MLP)
+                "attn.to_out.0",  # Attention output
+                "norm.linear",  # Modulation (3x)
+                
+                # Double blocks - FAL-style aliases
+                "img_attn_qkv",  # Image QKV (fused)
+                "txt_attn_qkv",  # Text QKV (fused)
+                "img_attn_proj",  # Image attention output
+                "txt_attn_proj",  # Text attention output
+                "img_mod_lin",  # Image modulation (6x)
+                "txt_mod_lin",  # Text modulation (6x)
+                "img_mlp_0",  # Image FF first layer
+                "img_mlp_2",  # Image FF second layer
+                "txt_mlp_0",  # Text FF first layer
+                "txt_mlp_2",  # Text FF second layer
+                
+                # Global
+                "proj_out",  # Final output projection
+                
+                # Fallback for partially fused models
+                "attn.to_qkv",  # Standard fused QKV
+                "attn.add_qkv_proj",  # Standard fused text QKV
+                "attn.to_out.0",
+                "attn.to_add_out",
+                "norm1.linear",
+                "norm1_context.linear",
+            ]
         elif args.flux_lora_target == "daisy":
-            # from dsy-ai, possibly required to continue finetuning one.
+            # from fal-ai, possibly required to continue finetuning one.
             target_modules = [
                 "single_transformer_blocks.9.attn.to_q",
                 "single_transformer_blocks.9.attn.to_k",
@@ -154,7 +186,7 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "ff_context.net.2",
             ]
         elif args.flux_lora_target == "daisy-tiny":
-            # from dsy-ai, possibly required to continue finetuning one.
+            # from fal-ai, possibly required to continue finetuning one.
             target_modules = [
                 "single_transformer_blocks.9.attn.to_q",
                 "single_transformer_blocks.9.attn.to_k",
@@ -192,8 +224,8 @@ def determine_adapter_target_modules(args, unet, transformer):
         return target_modules
 
 
-# Mapping from dsy-kontext LoRA naming to SimpleTuner/diffusers naming
-DSY_KONTEXT_KEY_MAPPING = {
+# Mapping from fal-kontext LoRA naming to SimpleTuner/diffusers naming
+FAL_KONTEXT_KEY_MAPPING = {
     # Double blocks (MMDiT) mappings
     "img_attn_qkv": "attn.to_qkv",  # Fused QKV for image attention
     "txt_attn_qkv": "attn.add_qkv_proj",  # Fused QKV for text attention
@@ -214,7 +246,7 @@ DSY_KONTEXT_KEY_MAPPING = {
 }
 
 # Scaling factors for specific layer types based on output dimensions
-DSY_KONTEXT_SCALING_FACTORS = {
+FAL_KONTEXT_SCALING_FACTORS = {
     # QKV projections output 3x the input dimension (Q, K, V)
     "attn.to_qkv": 3,
     "attn.add_qkv_proj": 3,
@@ -233,8 +265,8 @@ DSY_KONTEXT_SCALING_FACTORS = {
 }
 
 
-def get_dsy_kontext_mapped_key(lora_key):
-    """Map dsy-kontext LoRA keys to SimpleTuner module names."""
+def get_fal_kontext_mapped_key(lora_key):
+    """Map fal-kontext LoRA keys to SimpleTuner module names."""
     # Remove .lora_A.weight or .lora_B.weight suffix
     base_key = lora_key.replace(".lora_A.weight", "").replace(".lora_B.weight", "")
     
@@ -256,8 +288,8 @@ def get_dsy_kontext_mapped_key(lora_key):
         layer_name = "_".join(parts[2:])  # e.g., "img_attn_qkv"
         
         # Look up the mapping
-        if layer_name in DSY_KONTEXT_KEY_MAPPING:
-            mapped_name = DSY_KONTEXT_KEY_MAPPING[layer_name]
+        if layer_name in FAL_KONTEXT_KEY_MAPPING:
+            mapped_name = FAL_KONTEXT_KEY_MAPPING[layer_name]
             # Reconstruct with proper prefix
             if block_type == "double_blocks":
                 return f"transformer.transformer_blocks.{block_num}.{mapped_name}"
@@ -272,13 +304,13 @@ def get_dsy_kontext_mapped_key(lora_key):
     return base_key
 
 
-def get_dsy_kontext_scaling_factor(module_name):
+def get_fal_kontext_scaling_factor(module_name):
     """Get the scaling factor for a specific module."""
     # Check each pattern in the scaling factors
-    for pattern, factor in DSY_KONTEXT_SCALING_FACTORS.items():
+    for pattern, factor in FAL_KONTEXT_SCALING_FACTORS.items():
         if pattern in module_name:
             return factor
-    return DSY_KONTEXT_SCALING_FACTORS["default"]
+    return FAL_KONTEXT_SCALING_FACTORS["default"]
 
 
 @torch.no_grad()
@@ -286,8 +318,8 @@ def load_lora_weights(dictionary, filename, loraKey="default", use_dora=False):
     additional_keys = set()
     state_dict = safetensors.torch.load_file(filename)
     
-    # Check if this is a dsy-kontext style LoRA
-    is_dsy_kontext = any(
+    # Check if this is a fal-kontext style LoRA
+    is_fal_kontext = any(
         "img_attn_qkv" in k or "txt_attn_qkv" in k or 
         "img_mlp" in k or "txt_mlp" in k or 
         "modulation_lin" in k or "mod_lin" in k 
@@ -314,9 +346,9 @@ def load_lora_weights(dictionary, filename, loraKey="default", use_dora=False):
     b_up_factor = 3
 
     for k, v in state_dict.items():
-        # Map the key if it's a dsy-kontext LoRA
-        if is_dsy_kontext:
-            mapped_k = get_dsy_kontext_mapped_key(k)
+        # Map the key if it's a fal-kontext LoRA
+        if is_fal_kontext:
+            mapped_k = get_fal_kontext_mapped_key(k)
         else:
             mapped_k = k
             
@@ -332,8 +364,8 @@ def load_lora_weights(dictionary, filename, loraKey="default", use_dora=False):
             kk = mapped_k.replace(".lora_B.weight", "")
             if kk in lora_layers:
                 # Get appropriate scaling factor
-                if is_dsy_kontext:
-                    scaling_factor = get_dsy_kontext_scaling_factor(kk)
+                if is_fal_kontext:
+                    scaling_factor = get_fal_kontext_scaling_factor(kk)
                     scaled_v = v * scaling_factor
                 elif ("ff.net." in kk) or ("ff_context.net." in kk):
                     # Original FF scaling logic

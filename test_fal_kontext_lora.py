@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""Test script for verifying dsy-kontext LoRA loading and mapping."""
+"""Test script for verifying fal-kontext LoRA loading and mapping."""
 
 import torch
 import safetensors.torch
 from helpers.training.adapter import (
-    DSY_KONTEXT_KEY_MAPPING, 
-    DSY_KONTEXT_SCALING_FACTORS,
-    get_dsy_kontext_mapped_key,
-    get_dsy_kontext_scaling_factor
+    FAL_KONTEXT_KEY_MAPPING, 
+    FAL_KONTEXT_SCALING_FACTORS,
+    get_fal_kontext_mapped_key,
+    get_fal_kontext_scaling_factor
 )
 
-def test_dsy_kontext_lora(lora_path="/Users/gt/Downloads/labubu_fal.safetensors"):
-    """Test the dsy-kontext LoRA loading and verify mappings."""
+def test_fal_kontext_lora(lora_path="/Users/gt/Downloads/labubu_fal.safetensors"):
+    """Test the fal-kontext LoRA loading and verify mappings."""
     
     print("Loading LoRA file...")
     state_dict = safetensors.torch.load_file(lora_path)
     
-    # Check if it's detected as dsy-kontext
-    is_dsy_kontext = any(
+    # Check if it's detected as fal-kontext
+    is_fal_kontext = any(
         "img_attn_qkv" in k or "txt_attn_qkv" in k or 
         "img_mlp" in k or "txt_mlp" in k or 
         "modulation_lin" in k or "mod_lin" in k 
         for k in state_dict.keys()
     )
     
-    print(f"\nDetected as dsy-kontext LoRA: {is_dsy_kontext}")
+    print(f"\nDetected as fal-kontext LoRA: {is_fal_kontext}")
     
     # Get unique layer names
     unique_layers = set()
@@ -54,8 +54,8 @@ def test_dsy_kontext_lora(lora_path="/Users/gt/Downloads/labubu_fal.safetensors"
     
     for key in test_keys:
         if key + ".lora_up.weight" in state_dict or key + ".lora_down.weight" in state_dict:
-            mapped_key = get_dsy_kontext_mapped_key(key)
-            scaling_factor = get_dsy_kontext_scaling_factor(mapped_key)
+            mapped_key = get_fal_kontext_mapped_key(key)
+            scaling_factor = get_fal_kontext_scaling_factor(mapped_key)
             
             # Get the actual dimensions from the state dict
             up_weight = state_dict.get(key + ".lora_up.weight")
@@ -119,13 +119,13 @@ def test_dsy_kontext_lora(lora_path="/Users/gt/Downloads/labubu_fal.safetensors"
     
     missing_mappings = []
     for layer in unique_layers:
-        mapped = get_dsy_kontext_mapped_key(layer)
+        mapped = get_fal_kontext_mapped_key(layer)
         if mapped == layer:  # No mapping found
             # Extract the actual layer name part
             parts = layer.split("_")
             if len(parts) > 3:
                 layer_name = "_".join(parts[3:])
-                if layer_name not in DSY_KONTEXT_KEY_MAPPING:
+                if layer_name not in FAL_KONTEXT_KEY_MAPPING:
                     missing_mappings.append(layer_name)
     
     if missing_mappings:
@@ -141,7 +141,7 @@ def test_dsy_kontext_lora(lora_path="/Users/gt/Downloads/labubu_fal.safetensors"
     print(f"LoRA file: {lora_path}")
     print(f"Total parameters: {len(state_dict)}")
     print(f"Unique layers: {len(unique_layers)}")
-    print(f"Is dsy-kontext style: {is_dsy_kontext}")
+    print(f"Is fal-kontext style: {is_fal_kontext}")
     
     return state_dict, unique_layers
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     lora_path = sys.argv[1] if len(sys.argv) > 1 else "/Users/gt/Downloads/labubu_fal.safetensors"
     
     try:
-        test_dsy_kontext_lora(lora_path)
+        test_fal_kontext_lora(lora_path)
     except Exception as e:
         print(f"\nError: {e}")
         import traceback
