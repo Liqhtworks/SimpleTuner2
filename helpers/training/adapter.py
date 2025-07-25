@@ -131,31 +131,26 @@ def determine_adapter_target_modules(args, unet, transformer):
             target_modules = [
                 # Single blocks - FAL's linear1 (QKV + MLP fused)
                 "linear1",  # 7x output (3x QKV + 4x MLP)
-                "attn.to_out.0",  # Attention output
+                "attn.to_out.0",  # Attention output (if exists)
                 "norm.linear",  # Modulation (3x)
                 
-                # Double blocks - FAL-style aliases
-                "img_attn_qkv",  # Image QKV (fused)
-                "txt_attn_qkv",  # Text QKV (fused)
-                "img_attn_proj",  # Image attention output
-                "txt_attn_proj",  # Text attention output
-                "img_mod_lin",  # Image modulation (6x)
-                "txt_mod_lin",  # Text modulation (6x)
-                "img_mlp_0",  # Image FF first layer
-                "img_mlp_2",  # Image FF second layer
-                "txt_mlp_0",  # Text FF first layer
-                "txt_mlp_2",  # Text FF second layer
+                # Double blocks - actual module paths (not aliases)
+                # Image path
+                "attn.to_qkv",  # Image QKV (fused) - FAL's img_attn_qkv
+                "attn.to_out.0",  # Image attention output - FAL's img_attn_proj
+                "norm1.linear",  # Image modulation (6x) - FAL's img_mod_lin
+                "ff.net.0.proj",  # Image FF first layer - FAL's img_mlp_0
+                "ff.net.2",  # Image FF second layer - FAL's img_mlp_2
+                
+                # Text path
+                "attn.to_added_qkv",  # Text QKV (fused) - FAL's txt_attn_qkv
+                "attn.to_add_out",  # Text attention output - FAL's txt_attn_proj  
+                "norm1_context.linear",  # Text modulation (6x) - FAL's txt_mod_lin
+                "ff_context.net.0.proj",  # Text FF first layer - FAL's txt_mlp_0
+                "ff_context.net.2",  # Text FF second layer - FAL's txt_mlp_2
                 
                 # Global
                 "proj_out",  # Final output projection
-                
-                # Fallback for partially fused models
-                "attn.to_qkv",  # Standard fused QKV
-                "attn.add_qkv_proj",  # Standard fused text QKV
-                "attn.to_out.0",
-                "attn.to_add_out",
-                "norm1.linear",
-                "norm1_context.linear",
             ]
         elif args.flux_lora_target == "daisy":
             # from fal-ai, possibly required to continue finetuning one.

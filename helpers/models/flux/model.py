@@ -952,26 +952,21 @@ class Flux(ImageModelFoundation):
                     "linear1",
                     "attn.to_out.0",
                     "norm.linear",
-                    # Double blocks - FAL-style aliases
-                    "img_attn_qkv",
-                    "txt_attn_qkv",
-                    "img_attn_proj",
-                    "txt_attn_proj", 
-                    "img_mod_lin",
-                    "txt_mod_lin",
-                    "img_mlp_0",
-                    "img_mlp_2",
-                    "txt_mlp_0",
-                    "txt_mlp_2",
+                    # Double blocks - actual module paths
+                    # Image path
+                    "attn.to_qkv",
+                    "attn.to_out.0",
+                    "norm1.linear",
+                    "ff.net.0.proj",
+                    "ff.net.2",
+                    # Text path
+                    "attn.to_added_qkv",
+                    "attn.to_add_out",
+                    "norm1_context.linear",
+                    "ff_context.net.0.proj",
+                    "ff_context.net.2",
                     # Global
                     "proj_out",
-                    # Fallback
-                    "to_qkv",
-                    "add_qkv_proj",
-                    "to_out.0",
-                    "to_add_out",
-                    "norm1.linear",
-                    "norm1_context.linear",
                 ]
             elif self.config.flux_lora_target == "tiny":
                 # From TheLastBen
