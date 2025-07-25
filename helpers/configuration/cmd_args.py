@@ -188,7 +188,8 @@ def get_argument_parser():
             "daisy",
             "daisy-tiny",
             "daisy-nano",
-            "dsy-kontext",
+            "fal-kontext",
+            "fal-kontext-fused",
             # control / controlnet
             "all+ffs+embedder",
             "all+ffs+embedder+controlnet",
