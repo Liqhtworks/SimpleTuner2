@@ -377,7 +377,11 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
     Fuse QKV and MLP projections in FluxSingleTransformerBlock to match FAL's linear1.
     This creates a single projection outputting 7x dimensions (3x for QKV + 4x for MLP).
     """
-    from diffusers.models.transformers.transformer_flux import FluxSingleTransformerBlock
+    # Import from the correct location
+    try:
+        from helpers.models.flux.transformer import FluxSingleTransformerBlock
+    except ImportError:
+        from diffusers.models.transformers.transformer_flux import FluxSingleTransformerBlock
     
     if not isinstance(block, FluxSingleTransformerBlock):
         logger.warning(f"Block is not FluxSingleTransformerBlock, skipping fusion: {type(block)}")
@@ -474,7 +478,11 @@ def fuse_double_block_components(block, permanent=True):
     Fuse components in FluxTransformerBlock to match FAL's double_blocks structure.
     This includes separate fusion for image and text paths.
     """
-    from diffusers.models.transformers.transformer_flux import FluxTransformerBlock
+    # Import from the correct location
+    try:
+        from helpers.models.flux.transformer import FluxTransformerBlock
+    except ImportError:
+        from diffusers.models.transformers.transformer_flux import FluxTransformerBlock
     
     if not isinstance(block, FluxTransformerBlock):
         logger.warning(f"Block is not FluxTransformerBlock, skipping fusion: {type(block)}")
@@ -721,7 +729,10 @@ def apply_fal_kontext_forward_overrides(model):
     """
     Apply custom forward methods to support FAL kontext fusion.
     """
-    from diffusers.models.transformers.transformer_flux import FluxSingleTransformerBlock
+    try:
+        from helpers.models.flux.transformer import FluxSingleTransformerBlock
+    except ImportError:
+        from diffusers.models.transformers.transformer_flux import FluxSingleTransformerBlock
     import types
     
     # Override forward for single blocks with fused layers
