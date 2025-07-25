@@ -393,13 +393,22 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
     
     # Get attention module
     attn = block.attn
-    device = attn.to_q.weight.data.device
-    dtype = attn.to_q.weight.data.dtype
-    hidden_dim = attn.to_q.weight.data.shape[1]  # 3072
+    device = attn.to_q.weight.data.device if hasattr(attn, 'to_q') else attn.to_qkv.weight.data.device
+    dtype = attn.to_q.weight.data.dtype if hasattr(attn, 'to_q') else attn.to_qkv.weight.data.dtype
+    
+    # Get hidden dimension
+    if hasattr(attn, 'to_q'):
+        hidden_dim = attn.to_q.weight.data.shape[1]  # 3072
+    elif hasattr(attn, 'to_qkv'):
+        hidden_dim = attn.to_qkv.weight.data.shape[1]  # 3072
+    else:
+        logger.error(f"Attention module has neither to_q nor to_qkv: {attn}")
+        return
     
     # Check if already fused QKV
     if hasattr(attn, 'to_qkv'):
         qkv_weight = attn.to_qkv.weight.data  # Shape: [9216, 3072]
+        has_bias = hasattr(attn.to_qkv, 'bias') and attn.to_qkv.bias is not None
     else:
         # Concatenate individual Q, K, V
         qkv_weight = torch.cat([
@@ -407,6 +416,7 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
             attn.to_k.weight.data, 
             attn.to_v.weight.data
         ])  # Shape: [9216, 3072]
+        has_bias = hasattr(attn, 'to_q') and hasattr(attn.to_q, 'bias') and attn.to_q.bias is not None
     
     mlp_weight = block.proj_mlp.weight.data  # Shape: [12288, 3072]
     
@@ -426,7 +436,7 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
     # Handle biases
     if hasattr(attn, 'to_qkv') and hasattr(attn.to_qkv, 'bias') and attn.to_qkv.bias is not None:
         qkv_bias = attn.to_qkv.bias.data
-    elif attn.use_bias:
+    elif has_bias and hasattr(attn, 'to_q'):
         qkv_bias = torch.cat([
             attn.to_q.bias.data,
             attn.to_k.bias.data,
@@ -489,25 +499,26 @@ def fuse_double_block_components(block, permanent=True):
         return
         
     attn = block.attn
-    device = attn.to_q.weight.data.device
-    dtype = attn.to_q.weight.data.dtype
-    hidden_dim = attn.query_dim  # 3072
     
     # Store original modules
     if not hasattr(block, '_original_modules'):
         block._original_modules = {}
     
-    # Fuse image path QKV
+    # Handle image path QKV
     if hasattr(attn, 'to_qkv'):
-        # Already fused
+        # Already fused - just create alias
         block.img_attn_qkv = attn.to_qkv
-    else:
-        # Fuse Q, K, V for image
+    elif hasattr(attn, 'to_q') and hasattr(attn, 'to_k') and hasattr(attn, 'to_v'):
+        # Not fused yet - do the fusion ourselves
+        device = attn.to_q.weight.data.device
+        dtype = attn.to_q.weight.data.dtype
+        hidden_dim = attn.to_q.weight.data.shape[1]
+        
         img_qkv_weights = torch.cat([
             attn.to_q.weight.data,
             attn.to_k.weight.data,
             attn.to_v.weight.data
-        ])  # [9216, 3072]
+        ])
         
         block.img_attn_qkv = nn.Linear(hidden_dim, 9216, bias=attn.use_bias, device=device, dtype=dtype)
         block.img_attn_qkv.weight.copy_(img_qkv_weights)
@@ -520,17 +531,21 @@ def fuse_double_block_components(block, permanent=True):
             ])
             block.img_attn_qkv.bias.copy_(img_qkv_bias)
     
-    # Fuse text path QKV
+    # Handle text path QKV
     if hasattr(attn, 'to_added_qkv'):
-        # Already fused
+        # Already fused - just create alias
         block.txt_attn_qkv = attn.to_added_qkv
-    else:
-        # Fuse add_q_proj, add_k_proj, add_v_proj for text
+    elif hasattr(attn, 'add_q_proj') and hasattr(attn, 'add_k_proj') and hasattr(attn, 'add_v_proj'):
+        # Not fused yet - do the fusion ourselves
+        device = attn.add_q_proj.weight.data.device
+        dtype = attn.add_q_proj.weight.data.dtype
+        hidden_dim = attn.add_q_proj.weight.data.shape[1]
+        
         txt_qkv_weights = torch.cat([
             attn.add_q_proj.weight.data,
             attn.add_k_proj.weight.data,
             attn.add_v_proj.weight.data
-        ])  # [9216, 3072]
+        ])
         
         block.txt_attn_qkv = nn.Linear(hidden_dim, 9216, bias=attn.added_proj_bias, device=device, dtype=dtype)
         block.txt_attn_qkv.weight.copy_(txt_qkv_weights)
@@ -544,47 +559,25 @@ def fuse_double_block_components(block, permanent=True):
             block.txt_attn_qkv.bias.copy_(txt_qkv_bias)
     
     # Keep modulation and FF layers as-is but add FAL-style aliases
-    block.img_mod_lin = block.norm1.linear  # Image modulation (6x output)
-    block.txt_mod_lin = block.norm1_context.linear  # Text modulation (6x output)
+    if hasattr(block, 'norm1') and hasattr(block.norm1, 'linear'):
+        block.img_mod_lin = block.norm1.linear  # Image modulation (6x output)
+    if hasattr(block, 'norm1_context') and hasattr(block.norm1_context, 'linear'):
+        block.txt_mod_lin = block.norm1_context.linear  # Text modulation (6x output)
     
     # Add aliases for FF layers
-    if hasattr(block.ff, 'net') and len(block.ff.net) >= 3:
+    if hasattr(block, 'ff') and hasattr(block.ff, 'net') and len(block.ff.net) >= 3:
         block.img_mlp_0 = block.ff.net[0]  # First layer (Linear proj)
         block.img_mlp_2 = block.ff.net[2]  # Second layer after activation
     
-    if hasattr(block.ff_context, 'net') and len(block.ff_context.net) >= 3:
+    if hasattr(block, 'ff_context') and hasattr(block.ff_context, 'net') and len(block.ff_context.net) >= 3:
         block.txt_mlp_0 = block.ff_context.net[0]
         block.txt_mlp_2 = block.ff_context.net[2]
     
     # Keep attention output projections with aliases
-    block.img_attn_proj = attn.to_out[0] if hasattr(attn.to_out, '__getitem__') else attn.to_out
-    block.txt_attn_proj = attn.to_add_out
-    
-    if permanent:
-        # Store originals for unfusing
-        block._original_modules.update({
-            'attn_to_q': getattr(attn, 'to_q', None),
-            'attn_to_k': getattr(attn, 'to_k', None),
-            'attn_to_v': getattr(attn, 'to_v', None),
-            'attn_to_qkv': getattr(attn, 'to_qkv', None),
-            'attn_add_q_proj': getattr(attn, 'add_q_proj', None),
-            'attn_add_k_proj': getattr(attn, 'add_k_proj', None),
-            'attn_add_v_proj': getattr(attn, 'add_v_proj', None),
-            'attn_to_added_qkv': getattr(attn, 'to_added_qkv', None),
-        })
-        
-        # Clean up original unfused layers if they exist
-        for attr in ['to_q', 'to_k', 'to_v']:
-            if hasattr(attn, attr) and hasattr(block, 'img_attn_qkv'):
-                delattr(attn, attr)
-                if attr in attn._modules:
-                    del attn._modules[attr]
-                    
-        for attr in ['add_q_proj', 'add_k_proj', 'add_v_proj']:
-            if hasattr(attn, attr) and hasattr(block, 'txt_attn_qkv'):
-                delattr(attn, attr)
-                if attr in attn._modules:
-                    del attn._modules[attr]
+    if hasattr(attn, 'to_out'):
+        block.img_attn_proj = attn.to_out[0] if hasattr(attn.to_out, '__getitem__') else attn.to_out
+    if hasattr(attn, 'to_add_out'):
+        block.txt_attn_proj = attn.to_add_out
     
     # Mark as FAL-style fused
     block.fal_kontext_fused = True
