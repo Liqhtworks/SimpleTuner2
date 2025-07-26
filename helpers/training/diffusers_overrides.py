@@ -564,14 +564,8 @@ def fuse_double_block_components(block, permanent=True):
     if hasattr(block, 'norm1_context') and hasattr(block.norm1_context, 'linear'):
         block.txt_mod_lin = block.norm1_context.linear  # Text modulation (6x output)
     
-    # Add aliases for FF layers
-    if hasattr(block, 'ff') and hasattr(block.ff, 'net') and len(block.ff.net) >= 3:
-        block.img_mlp_0 = block.ff.net[0]  # First layer (Linear proj)
-        block.img_mlp_2 = block.ff.net[2]  # Second layer after activation
-    
-    if hasattr(block, 'ff_context') and hasattr(block.ff_context, 'net') and len(block.ff_context.net) >= 3:
-        block.txt_mlp_0 = block.ff_context.net[0]
-        block.txt_mlp_2 = block.ff_context.net[2]
+    # NOTE: We don't create aliases for FF layers anymore as they cause duplicate LoRA adapters
+    # The actual paths (ff.net.0.proj, ff.net.2, etc.) are already targeted
     
     # Keep attention output projections with aliases
     if hasattr(attn, 'to_out'):

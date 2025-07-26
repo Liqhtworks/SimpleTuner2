@@ -25,6 +25,46 @@ logger = logging.getLogger("SaveHookManager")
 logger.setLevel(os.environ.get("SIMPLETUNER_LOG_LEVEL", "WARNING"))
 
 
+def filter_duplicate_tensors(state_dict):
+    """
+    Filter out duplicate tensors that share the same memory address.
+    This happens when aliases are created (e.g., fal-kontext fusion).
+    """
+    seen_data_ptrs = {}
+    filtered_dict = {}
+    
+    for key, tensor in state_dict.items():
+        if hasattr(tensor, 'data_ptr'):
+            data_ptr = tensor.data_ptr()
+            
+            if data_ptr in seen_data_ptrs:
+                # This tensor shares memory with another tensor we've already seen
+                # Keep the fal-kontext aliases (img_mlp_0/txt_mlp_0) over canonical names
+                existing_key = seen_data_ptrs[data_ptr]
+                
+                # Prefer fal-kontext aliases over canonical names
+                if ('img_mlp_0' in key or 'txt_mlp_0' in key or 
+                    'img_mlp_2' in key or 'txt_mlp_2' in key):
+                    # This key is a fal alias, replace the canonical one
+                    logger.debug(f"Replacing {existing_key} with fal alias {key}")
+                    del filtered_dict[existing_key]
+                    filtered_dict[key] = tensor
+                    seen_data_ptrs[data_ptr] = key
+                else:
+                    # Skip this canonical name, keep the existing fal alias
+                    logger.debug(f"Skipping canonical name {key} (keeping fal alias {existing_key})")
+                    continue
+            else:
+                # First time seeing this tensor
+                filtered_dict[key] = tensor
+                seen_data_ptrs[data_ptr] = key
+        else:
+            # Not a tensor or doesn't have data_ptr, keep it
+            filtered_dict[key] = tensor
+    
+    return filtered_dict
+
+
 def merge_safetensors_files(directory):
     json_file_name = "diffusion_pytorch_model.safetensors.index.json"
     json_file_path = os.path.join(directory, json_file_name)
@@ -123,13 +163,15 @@ class SaveHookManager:
             self.ema_model.store(trainable_parameters)
             self.ema_model.copy_to(trainable_parameters)
             lora_save_parameters = {
-                f"{self.model.MODEL_SUBFOLDER}_lora_layers": convert_state_dict_to_diffusers(
-                    get_peft_model_state_dict(
-                        unwrap_model(
-                            self.accelerator, self.model.get_trained_component()
-                        )
-                    ),
-                    original_type=StateDictType.PEFT,
+                f"{self.model.MODEL_SUBFOLDER}_lora_layers": filter_duplicate_tensors(
+                    convert_state_dict_to_diffusers(
+                        get_peft_model_state_dict(
+                            unwrap_model(
+                                self.accelerator, self.model.get_trained_component()
+                            )
+                        ),
+                        original_type=StateDictType.PEFT,
+                    )
                 ),
             }
             self.model.save_lora_weights(
@@ -188,6 +230,11 @@ class SaveHookManager:
             # make sure to pop weight so that corresponding model is not saved again
             if weights:
                 weights.pop()
+
+        # Filter duplicate tensors from all lora_save_parameters to handle fal-kontext aliases
+        for key in lora_save_parameters:
+            if isinstance(lora_save_parameters[key], dict):
+                lora_save_parameters[key] = filter_duplicate_tensors(lora_save_parameters[key])
 
         self.model.save_lora_weights(output_dir, **lora_save_parameters)
 
