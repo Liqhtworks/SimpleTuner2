@@ -458,6 +458,14 @@ def get_argument_parser():
         ),
     )
     parser.add_argument(
+        "--save_lora_in_kohya_format",
+        action="store_true",
+        help=(
+            "Save LoRA weights in Kohya-ss compatible format. This converts SimpleTuner LoRA naming "
+            "to Kohya format for compatibility with external tools."
+        ),
+    )
+    parser.add_argument(
         "--lycoris_config",
         type=str,
         default="config/lycoris_config.json",

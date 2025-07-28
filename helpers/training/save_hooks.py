@@ -236,6 +236,18 @@ class SaveHookManager:
             if isinstance(lora_save_parameters[key], dict):
                 lora_save_parameters[key] = filter_duplicate_tensors(lora_save_parameters[key])
 
+        # Convert to Kohya format if requested
+        if hasattr(self.args, 'save_lora_in_kohya_format') and self.args.save_lora_in_kohya_format:
+            from helpers.training.adapter import convert_simpletuner_to_fal_kontext
+            logger.info("Converting LoRA weights to Kohya/FAL-kontext format...")
+            
+            for key in lora_save_parameters:
+                if isinstance(lora_save_parameters[key], dict):
+                    # Convert SimpleTuner format to FAL-kontext format
+                    converted_state_dict = convert_simpletuner_to_fal_kontext(lora_save_parameters[key])
+                    lora_save_parameters[key] = converted_state_dict
+                    logger.info(f"Converted {len(lora_save_parameters[key])} LoRA parameters to Kohya format")
+
         self.model.save_lora_weights(output_dir, **lora_save_parameters)
 
     def _save_lycoris(self, models, weights, output_dir):
