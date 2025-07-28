@@ -477,6 +477,16 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
         if 'proj_mlp' in block._modules:
             del block._modules['proj_mlp']
     
+    # Create linear2 alias for proj_out to match FAL-kontext naming
+    if hasattr(block, 'proj_out'):
+        block.linear2 = block.proj_out
+        logger.debug("Created linear2 alias for proj_out")
+    
+    # Create modulation_lin alias for norm.linear to match FAL-kontext naming
+    if hasattr(block, 'norm') and hasattr(block.norm, 'linear'):
+        block.modulation_lin = block.norm.linear
+        logger.debug("Created modulation_lin alias for norm.linear")
+    
     # Mark as fused
     block.fused_qkv_mlp = True
     logger.debug(f"Fused single block QKV+MLP into linear1 with output dim {concatenated_weights.shape[0]}")

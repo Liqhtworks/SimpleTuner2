@@ -210,7 +210,7 @@ FAL_KONTEXT_KEY_MAPPING = {
     "txt_mlp_2": "ff_context.net.2",  # Text MLP second layer
     # Single blocks (DiT) mappings
     "linear1": "attn.to_qkv",  # Fused QKV (if the LoRA uses this naming)
-    "linear2": "attn.to_out.0",  # Attention output
+    "linear2": "proj_out",  # Single block output projection
     "modulation_lin": "norm.linear",  # Single block modulation
     # Global mappings
     "final_layer_linear": "proj_out",  # Final output projection
