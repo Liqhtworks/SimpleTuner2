@@ -67,3 +67,4 @@ templates
 api_state.json
 images/
 datasets/
+*.safetensors
