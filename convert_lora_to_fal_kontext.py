@@ -26,7 +26,7 @@ import torch
 FAL_KONTEXT_SCALING_FACTORS = {
     # QKV projections output 3x the input dimension (Q, K, V)
     "attn.to_qkv": 3,
-    "attn.add_qkv_proj": 3,
+    "attn.to_added_qkv": 3,
     # Double block modulation outputs 6x (gate_msa, shift_mlp, scale_mlp, gate_mlp, and 2 more)
     "norm1.linear": 6,
     "norm1_context.linear": 6,
@@ -68,7 +68,7 @@ def convert_simpletuner_to_fal_kontext(state_dict):
     diffusers_to_fal_mapping = {
         # Double block mappings (MMDiT blocks)
         "attn.to_qkv": "img_attn_qkv",
-        "attn.add_qkv_proj": "txt_attn_qkv", 
+        "attn.to_added_qkv": "txt_attn_qkv",  # Fixed: FAL fusion creates to_added_qkv, not add_qkv_proj
         "attn.to_out.0": "img_attn_proj",
         "attn.to_add_out": "txt_attn_proj",
         "norm1.linear": "img_mod_lin",

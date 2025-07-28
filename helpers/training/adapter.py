@@ -93,64 +93,40 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "ff_context.net.0.proj",
                 "ff_context.net.2",
             ]
-        elif args.flux_lora_target == "fal-kontext":
-            # fal-ai kontext variant with fused QKV projections and modulation layers
-            # This targets the same layers as the analyzed LoRA structure:
-            # - Fused QKV projections for image/text attention
-            # - Modulation linear layers for double/single blocks
-            # - Attention output projections
-            # - Final projection layer
+        elif args.flux_lora_target == "fal-kontext-fused" or args.flux_lora_target == "fal-kontext":
+            # Full FAL-kontext compatible configuration
+            # This includes all required layers to match FAL-kontext format exactly
+            if args.flux_lora_target == "fal-kontext":
+                logger.warning("flux_lora_target='fal-kontext' is deprecated. Use 'fal-kontext-fused' instead.")
+            
             target_modules = [
-                # For training new models, we need to support both fused and unfused variants
-                # Double blocks (MMDiT blocks):
-                "attn.to_q",  # Will be fused into to_qkv if fuse_qkv_projections is enabled
-                "attn.to_k",
-                "attn.to_v",
-                "attn.to_qkv",  # Fused QKV projection for image attention
-                "attn.add_q_proj",  # Will be fused into add_qkv_proj if enabled
-                "attn.add_k_proj",
-                "attn.add_v_proj", 
-                "attn.add_qkv_proj",  # Fused QKV projection for text attention
-                "attn.to_out.0",  # Image attention output projection
-                "attn.to_add_out",  # Text attention output projection
-                "norm1.linear",  # Image modulation linear (outputs 6x hidden for gate_msa, shift_mlp, scale_mlp, gate_mlp)
-                "norm1_context.linear",  # Text modulation linear (outputs 6x hidden)
-                # Single blocks (DiT blocks):
-                "attn.to_qkv",  # Fused QKV for single blocks (if supported)
-                "attn.to_q",  # Unfused variants for compatibility
-                "attn.to_k",
-                "attn.to_v",
-                "attn.to_out.0",  # Attention output
-                "norm.linear",  # Modulation linear (outputs 3x hidden for gate, shift, scale)
-                # Global:
-                "proj_out",  # Final output projection
-            ]
-        elif args.flux_lora_target == "fal-kontext-fused":
-            # Full FAL kontext fusion with QKV+MLP combined in single blocks
-            # and FAL-style aliases for double blocks
-            target_modules = [
-                # Single blocks - FAL's linear1 (QKV + MLP fused)
-                "linear1",  # 7x output (3x QKV + 4x MLP)
-                "attn.to_out.0",  # Attention output (if exists)
-                "norm.linear",  # Modulation (3x)
-                
-                # Double blocks - actual module paths (not aliases)
-                # Image path
+                # Double blocks (MMDiT) - all required layers for FAL compatibility:
+                # Image attention path
                 "attn.to_qkv",  # Image QKV (fused) - FAL's img_attn_qkv
                 "attn.to_out.0",  # Image attention output - FAL's img_attn_proj
+                
+                # Text attention path
+                "attn.to_added_qkv",  # Text QKV (fused) - FAL's txt_attn_qkv
+                "attn.add_qkv_proj",  # Alternative name for text QKV
+                "attn.to_add_out",  # Text attention output - FAL's txt_attn_proj
+                
+                # Modulation layers  
                 "norm1.linear",  # Image modulation (6x) - FAL's img_mod_lin
+                "norm1_context.linear",  # Text modulation (6x) - FAL's txt_mod_lin
+                
+                # MLP layers
                 "ff.net.0.proj",  # Image FF first layer - FAL's img_mlp_0
                 "ff.net.2",  # Image FF second layer - FAL's img_mlp_2
-                
-                # Text path
-                "attn.to_added_qkv",  # Text QKV (fused) - FAL's txt_attn_qkv
-                "attn.to_add_out",  # Text attention output - FAL's txt_attn_proj  
-                "norm1_context.linear",  # Text modulation (6x) - FAL's txt_mod_lin
                 "ff_context.net.0.proj",  # Text FF first layer - FAL's txt_mlp_0
                 "ff_context.net.2",  # Text FF second layer - FAL's txt_mlp_2
                 
+                # Single blocks (DiT) - FAL uses linear1/linear2:
+                "linear1",  # Fused QKV + MLP projection (single_blocks.N.linear1)
+                "linear2",  # Output projection (single_blocks.N.linear2)
+                "norm.linear",  # Single block modulation
+                
                 # Global
-                "proj_out",  # Final output projection
+                "proj_out",  # Final output projection (final_layer_linear)
             ]
         elif args.flux_lora_target == "daisy":
             # from fal-ai, possibly required to continue finetuning one.
@@ -223,7 +199,7 @@ def determine_adapter_target_modules(args, unet, transformer):
 FAL_KONTEXT_KEY_MAPPING = {
     # Double blocks (MMDiT) mappings
     "img_attn_qkv": "attn.to_qkv",  # Fused QKV for image attention
-    "txt_attn_qkv": "attn.add_qkv_proj",  # Fused QKV for text attention
+    "txt_attn_qkv": "attn.to_added_qkv",  # Fused QKV for text attention (created by diffusers fusion)
     "img_attn_proj": "attn.to_out.0",  # Image attention output
     "txt_attn_proj": "attn.to_add_out",  # Text attention output  
     "img_mod_lin": "norm1.linear",  # Image modulation
@@ -244,7 +220,7 @@ FAL_KONTEXT_KEY_MAPPING = {
 FAL_KONTEXT_SCALING_FACTORS = {
     # QKV projections output 3x the input dimension (Q, K, V)
     "attn.to_qkv": 3,
-    "attn.add_qkv_proj": 3,
+    "attn.to_added_qkv": 3,
     # Double block modulation outputs 6x (gate_msa, shift_mlp, scale_mlp, gate_mlp, and 2 more)
     "norm1.linear": 6,
     "norm1_context.linear": 6,

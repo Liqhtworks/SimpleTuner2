@@ -920,53 +920,41 @@ class Flux(ImageModelFoundation):
                     "proj_out",
                 ]
             elif self.config.flux_lora_target == "fal-kontext":
-                # fal-ai kontext variant - same as in adapter.py
+                # Deprecated - use fal-kontext-fused instead
+                logger.warning("flux_lora_target='fal-kontext' is deprecated. Use 'fal-kontext-fused' instead.")
+                # Fall through to fal-kontext-fused
+            elif self.config.flux_lora_target == "fal-kontext-fused" or self.config.flux_lora_target == "fal-kontext":
+                # Full FAL kontext compatible target modules
+                # This configuration ensures we generate all the layers that FAL-kontext format expects
                 return [
-                    # Double blocks (MMDiT blocks):
-                    "to_q",
-                    "to_k",
-                    "to_v",
-                    "to_qkv",
-                    "add_q_proj",
-                    "add_k_proj",
-                    "add_v_proj",
-                    "add_qkv_proj",
-                    "to_out.0",
-                    "to_add_out",
-                    "norm1.linear",
-                    "norm1_context.linear",
-                    # Single blocks (DiT blocks):
-                    "to_qkv",
-                    "to_q",
-                    "to_k",
-                    "to_v",
-                    "to_out.0",
-                    "norm.linear",
+                    # Double blocks (MMDiT blocks) - all required layers:
+                    # Image attention path
+                    "attn.to_qkv",  # Fused QKV projection for image attention (img_attn_qkv)
+                    "attn.to_out.0",  # Image attention output projection (img_attn_proj)
+                    # Text attention path  
+                    "attn.to_added_qkv",  # Fused QKV projection for text attention (txt_attn_qkv)
+                    "attn.add_qkv_proj",  # Alternative name for fused text QKV
+                    "attn.to_add_out",  # Text attention output projection (txt_attn_proj)
+                    # Modulation layers
+                    "norm1.linear",  # Image modulation linear (img_mod_lin) - outputs 6x hidden
+                    "norm1_context.linear",  # Text modulation linear (txt_mod_lin) - outputs 6x hidden
+                    # MLP layers
+                    "ff.net.0.proj",  # Image MLP first layer (img_mlp_0)
+                    "ff.net.2",  # Image MLP second layer (img_mlp_2)
+                    "ff_context.net.0.proj",  # Text MLP first layer (txt_mlp_0)
+                    "ff_context.net.2",  # Text MLP second layer (txt_mlp_2)
+                    
+                    # Single blocks (DiT blocks) - FAL uses linear1/linear2:
+                    "linear1",  # Fused QKV + MLP projection (single_blocks.N.linear1)
+                    "linear2",  # Output projection (single_blocks.N.linear2)
+                    # Also include the components for compatibility:
+                    "attn.to_qkv",  # For single block attention if not using linear1
+                    "attn.to_out.0",  # Single block attention output
+                    "norm.linear",  # Single block modulation (modulation_lin)
+                    "proj_mlp",  # MLP projection for single blocks
+                    
                     # Global:
-                    "proj_out",
-                ]
-            elif self.config.flux_lora_target == "fal-kontext-fused":
-                # Full FAL kontext fusion - matches adapter.py
-                return [
-                    # Single blocks - FAL's linear1 (QKV + MLP fused)
-                    "linear1",
-                    "attn.to_out.0",
-                    "norm.linear",
-                    # Double blocks - actual module paths
-                    # Image path
-                    "attn.to_qkv",
-                    "attn.to_out.0",
-                    "norm1.linear",
-                    "ff.net.0.proj",
-                    "ff.net.2",
-                    # Text path
-                    "attn.to_added_qkv",
-                    "attn.to_add_out",
-                    "norm1_context.linear",
-                    "ff_context.net.0.proj",
-                    "ff_context.net.2",
-                    # Global
-                    "proj_out",
+                    "proj_out",  # Final output projection (final_layer_linear)
                 ]
             elif self.config.flux_lora_target == "tiny":
                 # From TheLastBen

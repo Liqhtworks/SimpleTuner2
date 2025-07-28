@@ -415,7 +415,7 @@ usage: train.py [-h] [--snr_gamma SNR_GAMMA] [--use_soft_min_snr]
                 [--huber_schedule {snr,exponential,constant}]
                 [--huber_c HUBER_C] [--hidream_use_load_balancing_loss]
                 [--hidream_load_balancing_loss_weight HIDREAM_LOAD_BALANCING_LOSS_WEIGHT]
-                [--flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,all+ffs+embedder,all+ffs+embedder+controlnet}]
+                [--flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,all+ffs+embedder,all+ffs+embedder+controlnet,fal-kontext-fused}]
                 [--flow_sigmoid_scale FLOW_SIGMOID_SCALE]
                 [--flux_fast_schedule] [--flow_use_uniform_schedule]
                 [--flow_use_beta_schedule]
@@ -691,7 +691,7 @@ options:
                         When set, will use augment the load balancing loss for
                         HiDream training. This is an experimental
                         implementation.
-  --flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,all+ffs+embedder,all+ffs+embedder+controlnet}
+  --flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,all+ffs+embedder,all+ffs+embedder+controlnet,fal-kontext-fused}
                         This option only applies to Standard LoRA, not
                         Lycoris. Flux has single and joint attention blocks.
                         By default, all attention layers are trained, but not
@@ -708,7 +708,11 @@ options:
                         all layers will be trained including feed-forward and
                         norms (based on ostris/ai-toolkit). If 'tiny' is
                         provided, only two layers will be trained. If 'nano'
-                        is provided, only one layers will be trained.
+                        is provided, only one layers will be trained. If
+                        'fal-kontext-fused' is provided, all layers required
+                        for FAL-kontext compatibility will be trained, including
+                        linear1/linear2 for single blocks and all double block
+                        attention/modulation/MLP layers.
   --flow_sigmoid_scale FLOW_SIGMOID_SCALE
                         Scale factor for sigmoid timestep sampling for flow-
                         matching models.
