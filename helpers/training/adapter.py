@@ -308,6 +308,129 @@ def get_fal_kontext_scaling_factor(module_name):
     return FAL_KONTEXT_SCALING_FACTORS["default"]
 
 
+def convert_simpletuner_to_fal_kontext(state_dict):
+    """
+    Convert SimpleTuner/diffusers LoRA format to FAL-kontext format.
+    
+    This function performs the reverse mapping of get_fal_kontext_mapped_key():
+    1. Converts key names from diffusers format to FAL-kontext format
+    2. Swaps lora_A/lora_B to lora_down/lora_up
+    3. Applies inverse scaling factors
+    
+    Args:
+        state_dict: Dictionary containing SimpleTuner LoRA weights
+        
+    Returns:
+        Dictionary with FAL-kontext compatible weights
+    """
+    # Create direct mapping from diffusers modules to FAL-kontext names
+    diffusers_to_fal_mapping = {
+        # Double block mappings (MMDiT blocks)
+        "attn.to_qkv": "img_attn_qkv",
+        "attn.add_qkv_proj": "txt_attn_qkv", 
+        "attn.to_out.0": "img_attn_proj",
+        "attn.to_add_out": "txt_attn_proj",
+        "norm1.linear": "img_mod_lin",
+        "norm1_context.linear": "txt_mod_lin",
+        "ff.net.0.proj": "img_mlp_0",
+        "ff.net.2": "img_mlp_2",
+        "ff_context.net.0.proj": "txt_mlp_0",
+        "ff_context.net.2": "txt_mlp_2",
+        # Single block mappings (DiT blocks) - these use different naming
+        # For single blocks, we'll handle them specially
+        "norm.linear": "modulation_lin",
+    }
+    
+    fal_state_dict = {}
+    
+    for key, weight in state_dict.items():
+        # Skip non-LoRA keys
+        if not any(suffix in key for suffix in [".lora_A.weight", ".lora_B.weight", ".alpha", ".lora_alpha"]):
+            continue
+            
+        # Extract base key and weight type
+        if ".lora_A.weight" in key:
+            base_key = key.replace(".lora_A.weight", "")
+            weight_type = "lora_down"  # FAL-kontext uses lora_down for A matrices
+        elif ".lora_B.weight" in key:
+            base_key = key.replace(".lora_B.weight", "")
+            weight_type = "lora_up"    # FAL-kontext uses lora_up for B matrices
+        elif ".alpha" in key or ".lora_alpha" in key:
+            base_key = key.replace(".lora_alpha", "").replace(".alpha", "")
+            weight_type = "alpha"
+        else:
+            continue
+            
+        # Remove transformer prefix if present
+        if base_key.startswith("transformer."):
+            base_key = base_key[len("transformer."):]
+            
+        # Parse the structure to convert to FAL-kontext naming
+        fal_key = None
+        
+        # Handle transformer blocks
+        if base_key.startswith("transformer_blocks."):
+            # Double blocks: transformer_blocks.X.module -> lora_unet_double_blocks_X_module
+            parts = base_key.split(".", 2)  # ["transformer_blocks", "X", "module.path"]
+            if len(parts) >= 3:
+                block_num = parts[1]
+                module_path = parts[2]
+                
+                # Map to FAL-kontext module name
+                if module_path in diffusers_to_fal_mapping:
+                    fal_module = diffusers_to_fal_mapping[module_path]
+                    fal_key = f"lora_unet_double_blocks_{block_num}_{fal_module}"
+                    
+        elif base_key.startswith("single_transformer_blocks."):
+            # Single blocks: single_transformer_blocks.X.module -> lora_unet_single_blocks_X_module
+            parts = base_key.split(".", 2)  # ["single_transformer_blocks", "X", "module.path"]
+            if len(parts) >= 3:
+                block_num = parts[1]
+                module_path = parts[2]
+                
+                # For single blocks, FAL-kontext uses different naming
+                if module_path == "attn.to_qkv":
+                    # Single block QKV is part of linear1 in FAL-kontext
+                    fal_key = f"lora_unet_single_blocks_{block_num}_linear1"
+                elif module_path == "attn.to_out.0":
+                    fal_key = f"lora_unet_single_blocks_{block_num}_linear2"
+                elif module_path in diffusers_to_fal_mapping:
+                    fal_module = diffusers_to_fal_mapping[module_path]
+                    fal_key = f"lora_unet_single_blocks_{block_num}_{fal_module}"
+                    
+        elif base_key == "proj_out":
+            # Global projection layer
+            fal_key = "lora_unet_final_layer_linear"
+            
+        # If we found a mapping, process the weight
+        if fal_key:
+            if weight_type in ["lora_down", "lora_up"]:
+                final_key = f"{fal_key}.{weight_type}.weight"
+                
+                # Apply inverse scaling for lora_up (B) weights
+                if weight_type == "lora_up":
+                    # Get the original module name to determine scaling factor
+                    original_module = base_key
+                    if base_key.startswith("transformer_blocks.") or base_key.startswith("single_transformer_blocks."):
+                        # Extract just the module part for scaling lookup
+                        parts = base_key.split(".", 2)
+                        if len(parts) >= 3:
+                            original_module = parts[2]
+                    
+                    scaling_factor = get_fal_kontext_scaling_factor(original_module)
+                    if scaling_factor > 1:
+                        # Apply inverse scaling
+                        weight = weight / scaling_factor
+                        
+                fal_state_dict[final_key] = weight
+                
+            elif weight_type == "alpha":
+                final_key = f"{fal_key}.alpha"
+                fal_state_dict[final_key] = weight
+                
+    return fal_state_dict
+
+
 @torch.no_grad()
 def load_lora_weights(dictionary, filename, loraKey="default", use_dora=False):
     additional_keys = set()
