@@ -12,6 +12,19 @@ The JSON filename expected is `config.json` and the key names are the same as th
 
 The script `configure.py` in the project root can be used via `python configure.py` to set up a `config.json` file with mostly-ideal default settings.
 
+#### Modifying existing configurations
+
+The `configure.py` script is capable of accepting a single argument, a compatible `config.json`, allowing interactive modification of your training setup:
+
+```bash
+python configure.py config/foo/config.json
+```
+
+Where `foo` is your config environment - or just use `config/config.json` if you're not using config environments.
+
+<img width="1484" height="560" alt="image" src="https://github.com/user-attachments/assets/67dec8d8-3e41-42df-96e6-f95892d2814c" />
+
+
 > ⚠️ For users located in countries where Hugging Face Hub is not readily accessible, you should add `HF_ENDPOINT=https://hf-mirror.com` to your `~/.bashrc` or `~/.zshrc` depending on which `$SHELL` your system uses.
 
 ---
@@ -415,7 +428,7 @@ usage: train.py [-h] [--snr_gamma SNR_GAMMA] [--use_soft_min_snr]
                 [--huber_schedule {snr,exponential,constant}]
                 [--huber_c HUBER_C] [--hidream_use_load_balancing_loss]
                 [--hidream_load_balancing_loss_weight HIDREAM_LOAD_BALANCING_LOSS_WEIGHT]
-                [--flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,all+ffs+embedder,all+ffs+embedder+controlnet}]
+                [--flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,controlnet,all+ffs+embedder,all+ffs+embedder+controlnet}]
                 [--flow_sigmoid_scale FLOW_SIGMOID_SCALE]
                 [--flux_fast_schedule] [--flow_use_uniform_schedule]
                 [--flow_use_beta_schedule]
@@ -691,7 +704,7 @@ options:
                         When set, will use augment the load balancing loss for
                         HiDream training. This is an experimental
                         implementation.
-  --flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,all+ffs+embedder,all+ffs+embedder+controlnet}
+  --flux_lora_target {mmdit,context,context+ffs,all,all+ffs,ai-toolkit,tiny,nano,controlnet,all+ffs+embedder,all+ffs+embedder+controlnet}
                         This option only applies to Standard LoRA, not
                         Lycoris. Flux has single and joint attention blocks.
                         By default, all attention layers are trained, but not

@@ -19,10 +19,11 @@ environ["ACCELERATE_LOG_LEVEL"] = "WARNING"
 
 from helpers.training.trainer import Trainer
 from helpers.training.state_tracker import StateTracker
+from helpers.training.multi_process import _get_rank
 from helpers import log_format
 
 logger = logging.getLogger("SimpleTuner")
-logger.setLevel(environ.get("SIMPLETUNER_LOG_LEVEL", "INFO"))
+logger.setLevel(environ.get("SIMPLETUNER_LOG_LEVEL", "INFO") if _get_rank() == 0 else "ERROR")
 
 if __name__ == "__main__":
     trainer = None
@@ -54,6 +55,7 @@ if __name__ == "__main__":
 
         trainer.init_load_base_model()
         trainer.init_controlnet_model()
+        trainer.init_tread_model()
         trainer.init_precision()
         trainer.init_freeze_models()
         trainer.init_trainable_peft_adapter()

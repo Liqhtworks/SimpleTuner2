@@ -26,36 +26,34 @@ from helpers.models.all import (
 model_family_choices = list(model_families.keys())
 
 logger = logging.getLogger("ArgsParser")
-# Are we the primary process?
-is_primary_process = True
-if os.environ.get("RANK") is not None:
-    if int(os.environ.get("RANK")) != 0:
-        is_primary_process = False
-logger.setLevel(
-    os.environ.get("SIMPLETUNER_LOG_LEVEL", "INFO" if is_primary_process else "ERROR")
-)
+from helpers.training.multi_process import should_log
+
+if should_log():
+    logger.setLevel(os.environ.get("SIMPLETUNER_LOG_LEVEL", "INFO"))
+else:
+    logger.setLevel("ERROR")
 
 if torch.cuda.is_available():
     os.environ["NCCL_SOCKET_NTIMEO"] = "2000000"
 
 
 def print_on_main_thread(message):
-    if is_primary_process:
+    if should_log():
         print(message)
 
 
 def info_log(message):
-    if is_primary_process:
+    if should_log():
         logger.info(message)
 
 
 def warning_log(message):
-    if is_primary_process:
+    if should_log():
         logger.warning(message)
 
 
 def error_log(message):
-    if is_primary_process:
+    if should_log():
         logger.error(message)
 
 
@@ -189,6 +187,7 @@ def get_argument_parser():
             "daisy-tiny",
             "daisy-nano",
             # control / controlnet
+            "controlnet",
             "all+ffs+embedder",
             "all+ffs+embedder+controlnet",
         ],
@@ -505,6 +504,15 @@ def get_argument_parser():
         help=(
             "When training certain ControlNet models (eg. HiDream) you may set a config containing keys like num_layers or num_single_layers"
             " to adjust the resulting ControlNet size. This is not supported by most models, and may be ignored if the model does not support it."
+        ),
+    )
+    parser.add_argument(
+        "--tread_config",
+        type=str,
+        default=None,
+        help=(
+            "Allows you to train using the TREAD method, which can speed up training. It requires you to set up a"
+            " configuration specific to the network you are training. Currently only works for FLUX."
         ),
     )
     parser.add_argument(
@@ -2419,6 +2427,21 @@ def parse_cmdline_args(input_args=None, exit_on_error: bool = False):
                 )
             except Exception as e:
                 logger.error(f"Could not load controlnet_custom_config: {e}")
+                raise
+
+    if (
+        args.tread_config is not None
+        and type(args.tread_config) is str
+    ):
+        if args.tread_config.startswith("{"):
+            try:
+                import ast
+
+                args.tread_config = ast.literal_eval(
+                    args.tread_config
+                )
+            except Exception as e:
+                logger.error(f"Could not load tread_config: {e}")
                 raise
 
     if args.optimizer == "adam_bfloat16" and args.mixed_precision != "bf16":
