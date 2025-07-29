@@ -34,7 +34,7 @@ def test_lora_discovery():
     """Test LoRA module discovery on single blocks"""
     print("Loading model...")
     model = FluxTransformer2DModel.from_pretrained(
-        "black-forest-labs/FLUX.1-dev",
+        "black-forest-labs/FLUX.1-Kontext-dev",
         subfolder="transformer",
         torch_dtype=torch.bfloat16,
     )
