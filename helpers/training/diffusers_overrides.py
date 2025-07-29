@@ -377,13 +377,8 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
     Fuse QKV and MLP projections in FluxSingleTransformerBlock to match FAL's linear1.
     This creates a single projection outputting 7x dimensions (3x for QKV + 4x for MLP).
     """
-    # Import from the correct location
-    try:
-        from helpers.models.flux.transformer import FluxSingleTransformerBlock
-    except ImportError:
-        from diffusers.models.transformers.transformer_flux import FluxSingleTransformerBlock
-    
-    if not isinstance(block, FluxSingleTransformerBlock):
+    # Check if it's a FluxSingleTransformerBlock by checking class name
+    if "FluxSingleTransformerBlock" not in str(type(block)):
         logger.warning(f"Block is not FluxSingleTransformerBlock, skipping fusion: {type(block)}")
         return
         
@@ -433,6 +428,9 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
     )
     block.linear1.weight.copy_(concatenated_weights)
     
+    # Register the module properly to ensure PEFT can find it
+    block._modules['linear1'] = block.linear1
+    
     # Handle biases
     if hasattr(attn, 'to_qkv') and hasattr(attn.to_qkv, 'bias') and attn.to_qkv.bias is not None:
         qkv_bias = attn.to_qkv.bias.data
@@ -480,11 +478,15 @@ def fuse_single_block_qkv_mlp(block, permanent=True):
     # Create linear2 alias for proj_out to match FAL-kontext naming
     if hasattr(block, 'proj_out'):
         block.linear2 = block.proj_out
+        # Also register in _modules to ensure PEFT can find it
+        block._modules['linear2'] = block.proj_out
         logger.debug("Created linear2 alias for proj_out")
     
     # Create modulation_lin alias for norm.linear to match FAL-kontext naming
     if hasattr(block, 'norm') and hasattr(block.norm, 'linear'):
         block.modulation_lin = block.norm.linear
+        # Also register in _modules to ensure PEFT can find it
+        block._modules['modulation_lin'] = block.norm.linear
         logger.debug("Created modulation_lin alias for norm.linear")
     
     # Mark as fused
@@ -498,13 +500,8 @@ def fuse_double_block_components(block, permanent=True):
     Fuse components in FluxTransformerBlock to match FAL's double_blocks structure.
     This includes separate fusion for image and text paths.
     """
-    # Import from the correct location
-    try:
-        from helpers.models.flux.transformer import FluxTransformerBlock
-    except ImportError:
-        from diffusers.models.transformers.transformer_flux import FluxTransformerBlock
-    
-    if not isinstance(block, FluxTransformerBlock):
+    # Check if it's a FluxTransformerBlock by checking class name
+    if "FluxTransformerBlock" not in str(type(block)):
         logger.warning(f"Block is not FluxTransformerBlock, skipping fusion: {type(block)}")
         return
         

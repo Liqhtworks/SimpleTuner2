@@ -133,6 +133,9 @@ def convert_simpletuner_to_fal_kontext(state_dict):
                 if module_path == "attn.to_qkv":
                     # Single block QKV is part of linear1 in FAL-kontext
                     fal_key = f"lora_unet_single_blocks_{block_num}_linear1"
+                elif module_path == "linear1":
+                    # Fused linear1 (QKV + MLP) from flux-kontext-fused training
+                    fal_key = f"lora_unet_single_blocks_{block_num}_linear1"
                 elif module_path == "proj_out":
                     # Single block proj_out maps to linear2 in FAL-kontext
                     fal_key = f"lora_unet_single_blocks_{block_num}_linear2"

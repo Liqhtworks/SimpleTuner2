@@ -221,6 +221,8 @@ FAL_KONTEXT_SCALING_FACTORS = {
     # QKV projections output 3x the input dimension (Q, K, V)
     "attn.to_qkv": 3,
     "attn.to_added_qkv": 3,
+    # Fused linear1 outputs 7x (QKV + MLP combined from flux-kontext-fused)
+    "linear1": 7,
     # Double block modulation outputs 6x (gate_msa, shift_mlp, scale_mlp, gate_mlp, and 2 more)
     "norm1.linear": 6,
     "norm1_context.linear": 6,

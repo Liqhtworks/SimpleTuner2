@@ -34,7 +34,7 @@ def test_lora_discovery():
     """Test LoRA module discovery on single blocks"""
     print("Loading model...")
     model = FluxTransformer2DModel.from_pretrained(
-        "black-forest-labs/FLUX.1-Kontext-dev",
+        "/home/playerzer0x/ComfyUI/models/unet/FLUX.1-Kontext-dev",
         subfolder="transformer",
         torch_dtype=torch.bfloat16,
     )
@@ -52,12 +52,21 @@ def test_lora_discovery():
         
         print("\n=== AFTER FUSION ===")
         inspect_single_block(model)
+        
+        # Debug: Check if linear1 was actually created
+        block = model.single_transformer_blocks[0]
+        print("\n=== DEBUG: Checking for linear1 ===")
+        print(f"hasattr(block, 'linear1'): {hasattr(block, 'linear1')}")
+        if hasattr(block, 'linear1'):
+            print(f"  linear1 type: {type(block.linear1)}")
+            print(f"  linear1 weight shape: {block.linear1.weight.shape}")
+        print(f"'linear1' in block._modules: {'linear1' in block._modules}")
+        print(f"All modules in block: {list(block._modules.keys())}")
     
     # Try to apply LoRA
     print("\n\n=== APPLYING LORA ===")
     target_modules = [
         "linear1", "linear2", "modulation_lin",
-        "norm.linear", "proj_out", "attn.to_qkv"
     ]
     
     print(f"Target modules: {target_modules}")

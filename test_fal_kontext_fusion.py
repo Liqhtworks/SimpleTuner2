@@ -84,7 +84,7 @@ def test_fal_kontext_fusion():
         hidden_dim = 3072
         
         hidden_states = torch.randn(batch_size, seq_len, hidden_dim)
-        temb = torch.randn(batch_size, 256)  # Time embedding dimension
+        temb = torch.randn(batch_size, hidden_dim)  # Time embedding dimension should match inner_dim
         
         # Test single block forward
         output = single_block(hidden_states, temb)
