@@ -29,6 +29,13 @@ def filter_duplicate_tensors(state_dict):
     """
     Filter out duplicate tensors that share the same memory address.
     This happens when aliases are created (e.g., fal-kontext fusion).
+    
+    IMPORTANT: When fal-kontext fusion is enabled, it creates aliases at the block level
+    (e.g., block.img_attn_proj = attn.to_out[0]). When PEFT creates LoRA adapters,
+    if the aliases are properly registered in _modules, PEFT will create separate
+    adapters for both the original and alias, but they'll share the same underlying
+    weight tensor. This function needs to keep only one of them to avoid safetensors
+    errors about duplicate data pointers.
     """
     seen_data_ptrs = {}
     filtered_dict = {}
@@ -39,21 +46,12 @@ def filter_duplicate_tensors(state_dict):
             
             if data_ptr in seen_data_ptrs:
                 # This tensor shares memory with another tensor we've already seen
-                # Keep the fal-kontext aliases (img_mlp_0/txt_mlp_0) over canonical names
                 existing_key = seen_data_ptrs[data_ptr]
                 
-                # Prefer fal-kontext aliases over canonical names
-                if ('img_mlp_0' in key or 'txt_mlp_0' in key or 
-                    'img_mlp_2' in key or 'txt_mlp_2' in key):
-                    # This key is a fal alias, replace the canonical one
-                    logger.debug(f"Replacing {existing_key} with fal alias {key}")
-                    del filtered_dict[existing_key]
-                    filtered_dict[key] = tensor
-                    seen_data_ptrs[data_ptr] = key
-                else:
-                    # Skip this canonical name, keep the existing fal alias
-                    logger.debug(f"Skipping canonical name {key} (keeping fal alias {existing_key})")
-                    continue
+                # For FAL-kontext compatibility, prefer keeping the first occurrence
+                # The conversion to FAL-kontext format will handle renaming appropriately
+                logger.debug(f"Skipping duplicate tensor {key} (keeping {existing_key})")
+                continue
             else:
                 # First time seeing this tensor
                 filtered_dict[key] = tensor

@@ -1,6 +1,9 @@
 import peft
 import torch
 import safetensors.torch
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def determine_adapter_target_modules(args, unet, transformer):
@@ -103,16 +106,22 @@ def determine_adapter_target_modules(args, unet, transformer):
                 # Double blocks (MMDiT) - all required layers for FAL compatibility:
                 # Image attention path
                 "attn.to_qkv",  # Image QKV (fused) - FAL's img_attn_qkv
+                "img_attn_qkv",  # FAL-kontext alias for attn.to_qkv
                 "attn.to_out.0",  # Image attention output - FAL's img_attn_proj
+                "img_attn_proj",  # FAL-kontext alias for attn.to_out.0
                 
                 # Text attention path
                 "attn.to_added_qkv",  # Text QKV (fused) - FAL's txt_attn_qkv
+                "txt_attn_qkv",  # FAL-kontext alias for attn.to_added_qkv
                 "attn.add_qkv_proj",  # Alternative name for text QKV
                 "attn.to_add_out",  # Text attention output - FAL's txt_attn_proj
+                "txt_attn_proj",  # FAL-kontext alias for attn.to_add_out
                 
                 # Modulation layers  
                 "norm1.linear",  # Image modulation (6x) - FAL's img_mod_lin
+                "img_mod_lin",  # FAL-kontext alias for norm1.linear
                 "norm1_context.linear",  # Text modulation (6x) - FAL's txt_mod_lin
+                "txt_mod_lin",  # FAL-kontext alias for norm1_context.linear
                 
                 # MLP layers
                 "ff.net.0.proj",  # Image FF first layer - FAL's img_mlp_0
@@ -124,6 +133,7 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "linear1",  # Fused QKV + MLP projection (single_blocks.N.linear1)
                 "linear2",  # Output projection (single_blocks.N.linear2)
                 "norm.linear",  # Single block modulation
+                "modulation_lin",  # FAL-kontext alias for norm.linear
                 
                 # Global
                 "proj_out",  # Final output projection (final_layer_linear)

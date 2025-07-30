@@ -515,6 +515,8 @@ def fuse_double_block_components(block, permanent=True):
     if hasattr(attn, 'to_qkv'):
         # Already fused - just create alias
         block.img_attn_qkv = attn.to_qkv
+        # Register in _modules to ensure PEFT can find it
+        block._modules['img_attn_qkv'] = block.img_attn_qkv
     elif hasattr(attn, 'to_q') and hasattr(attn, 'to_k') and hasattr(attn, 'to_v'):
         # Not fused yet - do the fusion ourselves
         device = attn.to_q.weight.data.device
@@ -537,11 +539,16 @@ def fuse_double_block_components(block, permanent=True):
                 attn.to_v.bias.data
             ])
             block.img_attn_qkv.bias.copy_(img_qkv_bias)
+        
+        # Register in _modules to ensure PEFT can find it
+        block._modules['img_attn_qkv'] = block.img_attn_qkv
     
     # Handle text path QKV
     if hasattr(attn, 'to_added_qkv'):
         # Already fused - just create alias
         block.txt_attn_qkv = attn.to_added_qkv
+        # Register in _modules to ensure PEFT can find it
+        block._modules['txt_attn_qkv'] = block.txt_attn_qkv
     elif hasattr(attn, 'add_q_proj') and hasattr(attn, 'add_k_proj') and hasattr(attn, 'add_v_proj'):
         # Not fused yet - do the fusion ourselves
         device = attn.add_q_proj.weight.data.device
@@ -564,12 +571,19 @@ def fuse_double_block_components(block, permanent=True):
                 attn.add_v_proj.bias.data
             ])
             block.txt_attn_qkv.bias.copy_(txt_qkv_bias)
+        
+        # Register in _modules to ensure PEFT can find it
+        block._modules['txt_attn_qkv'] = block.txt_attn_qkv
     
     # Keep modulation and FF layers as-is but add FAL-style aliases
     if hasattr(block, 'norm1') and hasattr(block.norm1, 'linear'):
         block.img_mod_lin = block.norm1.linear  # Image modulation (6x output)
+        # Register in _modules to ensure PEFT can find it
+        block._modules['img_mod_lin'] = block.img_mod_lin
     if hasattr(block, 'norm1_context') and hasattr(block.norm1_context, 'linear'):
         block.txt_mod_lin = block.norm1_context.linear  # Text modulation (6x output)
+        # Register in _modules to ensure PEFT can find it
+        block._modules['txt_mod_lin'] = block.txt_mod_lin
     
     # NOTE: We don't create aliases for FF layers anymore as they cause duplicate LoRA adapters
     # The actual paths (ff.net.0.proj, ff.net.2, etc.) are already targeted
@@ -577,8 +591,12 @@ def fuse_double_block_components(block, permanent=True):
     # Keep attention output projections with aliases
     if hasattr(attn, 'to_out'):
         block.img_attn_proj = attn.to_out[0] if hasattr(attn.to_out, '__getitem__') else attn.to_out
+        # Register in _modules to ensure PEFT can find it
+        block._modules['img_attn_proj'] = block.img_attn_proj
     if hasattr(attn, 'to_add_out'):
         block.txt_attn_proj = attn.to_add_out
+        # Register in _modules to ensure PEFT can find it
+        block._modules['txt_attn_proj'] = block.txt_attn_proj
     
     # Mark as FAL-style fused
     block.fal_kontext_fused = True
