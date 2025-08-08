@@ -1,0 +1,1 @@
+Target model (fal): growwithdaisy/labubu_fal_2500
