@@ -77,7 +77,7 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "proj_mlp",
                 "proj_out",
             ]
-        elif args.flux_lora_target == "fal":
+        elif args.flux_lora_target == "fal-kontext-gpt":
             # Match FAL trainer (fused qkv + FF in double blocks)
             target_modules = [
                 "to_qkv",

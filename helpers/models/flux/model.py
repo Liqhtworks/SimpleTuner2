@@ -866,7 +866,7 @@ class Flux(ImageModelFoundation):
         # Ensure settings match expected behaviour for specific LoRA presets
         if (
             getattr(self.config, "model_type", None) == "lora"
-            and getattr(self.config, "flux_lora_target", None) == "fal"
+            and getattr(self.config, "flux_lora_target", None) == "fal-kontext-gpt"
         ):
             # FAL trainers use fused QKV projections; enable it automatically
             if not getattr(self.config, "fuse_qkv_projections", False):
@@ -931,7 +931,7 @@ class Flux(ImageModelFoundation):
                     "to_out.0",
                     "to_add_out",
                 ]
-            elif self.config.flux_lora_target == "fal":
+            elif self.config.flux_lora_target == "fal-kontext-gpt":
                 # Match FAL trainer layer coverage
                 # - fused QKV projections for attention in both streams
                 # - attention output projections (to_out / to_add_out)

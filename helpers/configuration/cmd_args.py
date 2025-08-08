@@ -182,7 +182,7 @@ def get_argument_parser():
             "ai-toolkit",
             "tiny",
             "nano",
-            "fal",
+            "fal-kontext-gpt",
             "daisy",
             "daisy-tiny",
             "daisy-nano",
