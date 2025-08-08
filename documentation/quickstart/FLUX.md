@@ -2,7 +2,7 @@
 
 ![image](https://github.com/user-attachments/assets/6409d790-3bb4-457c-a4b4-a51a45fc91d1)
 
-In this example, we'll be training a Flux.1 LoRA.
+In this example, we'll be training a Flux.1 Krea LoRA.
 
 ### Hardware requirements
 
@@ -128,6 +128,13 @@ There, you will possibly need to modify the following variables:
 
 - `model_type` - Set this to `lora`.
 - `model_family` - Set this to `flux`.
+- `model_flavour` - this is `krea` by default, but may be set to `dev` to train the original FLUX.1-Dev release.
+  - `krea` - The default FLUX.1-Krea [dev] model, an open-weights variant of Krea 1, a proprietary model collaboration between BFL and Krea.ai
+  - `dev` - Dev model flavour, the previous default
+  - `schnell` - Schnell model flavour, and set any appropriate options incl. fast training schedule
+  - `kontext` - Kontext training (see [this guide](/documentation/quickstart/FLUX_KONTEXT.md) for specific guidance)
+  - `fluxbooru` - A de-distilled (requires CFG) model based on FLUX.1-Dev called [FluxBooru](https://hf.co/terminusresearch/fluxbooru-v0.3), created by terminus research group
+  - `libreflux` - A de-distilled model based on FLUX.1-Schnell that requires attention masking on the T5 text encoder inputs
 - `offload_during_startup` - Set this to `true` if you run out of memory during VAE encodes.
 - `pretrained_model_name_or_path` - Set this to `black-forest-labs/FLUX.1-dev`.
 - `pretrained_vae_model_name_or_path` - Set this to `black-forest-labs/FLUX.1-dev`.
@@ -483,7 +490,7 @@ This configuration will:
 
 #### Key points
 
-- **Currently Flux-only** - TREAD is only implemented for Flux models
+- **Limited architecture support** - TREAD is only implemented for Flux and Wan models
 - **Best at high resolutions** - Biggest speedups at 1024x1024+ due to attention's O(n²) complexity
 - **Compatible with masked loss** - Masked regions are automatically preserved (but this reduces speedup)
 - **Works with quantization** - Can be combined with int8/int4/NF4 training
