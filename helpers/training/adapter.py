@@ -78,14 +78,10 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "proj_out",
             ]
         elif args.flux_lora_target == "fal":
-            # from fal-ai, possibly required to continue finetuning one.
+            # Match FAL trainer (fused qkv + FF in double blocks)
             target_modules = [
-                "to_q",
-                "to_k",
-                "to_v",
-                "add_q_proj",
-                "add_k_proj",
-                "add_v_proj",
+                "to_qkv",
+                "add_qkv_proj",
                 "to_out.0",
                 "to_add_out",
                 "ff.net.0.proj",

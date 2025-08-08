@@ -863,6 +863,18 @@ class Flux(ImageModelFoundation):
                 )
                 self.config.flux_attention_masked_training = False
 
+        # Ensure settings match expected behaviour for specific LoRA presets
+        if (
+            getattr(self.config, "model_type", None) == "lora"
+            and getattr(self.config, "flux_lora_target", None) == "fal"
+        ):
+            # FAL trainers use fused QKV projections; enable it automatically
+            if not getattr(self.config, "fuse_qkv_projections", False):
+                logger.warning(
+                    "Enabling fused QKV projections to match FAL LoRA target expectations."
+                )
+                self.config.fuse_qkv_projections = True
+
     def conditioning_validation_dataset_type(self) -> bool:
         # Most conditioning inputs (ControlNet) etc require "conditioning" dataset, but Kontext requires "images".
         if self.config.model_flavour == "kontext":
@@ -918,6 +930,32 @@ class Flux(ImageModelFoundation):
                     "add_v_proj",
                     "to_out.0",
                     "to_add_out",
+                ]
+            elif self.config.flux_lora_target == "fal":
+                # Match FAL trainer layer coverage
+                # - fused QKV projections for attention in both streams
+                # - attention output projections (to_out / to_add_out)
+                # - feed‑forward (ff / ff_context) layers
+                # - single‑block MLP projections and output
+                # - layer‑norm modulation linears (where present)
+                return [
+                    # attention (fused)
+                    "to_qkv",
+                    "add_qkv_proj",
+                    "to_out.0",
+                    "to_add_out",
+                    # feed‑forward (double blocks)
+                    "ff.net.0.proj",
+                    "ff.net.2",
+                    "ff_context.net.0.proj",
+                    "ff_context.net.2",
+                    # single‑block mlp
+                    "proj_mlp",
+                    "proj_out",
+                    # norm modulation linears
+                    "norm.linear",
+                    "norm1.linear",
+                    "norm1_context.linear",
                 ]
             elif self.config.flux_lora_target == "context":
                 # i think these are the text input layers.
