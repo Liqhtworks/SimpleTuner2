@@ -863,6 +863,18 @@ class Flux(ImageModelFoundation):
                 )
                 self.config.flux_attention_masked_training = False
 
+        # Ensure settings match expected behaviour for specific LoRA presets
+        if (
+            getattr(self.config, "model_type", None) == "lora"
+            and getattr(self.config, "flux_lora_target", None) == "dsy-kontext"
+        ):
+            # Kontext preset uses fused QKV projections; enable it automatically
+            if not getattr(self.config, "fuse_qkv_projections", False):
+                logger.warning(
+                    "Enabling fused QKV projections to match Kontext preset expectations."
+                )
+                self.config.fuse_qkv_projections = True
+
     def conditioning_validation_dataset_type(self) -> bool:
         # Most conditioning inputs (ControlNet) etc require "conditioning" dataset, but Kontext requires "images".
         if self.config.model_flavour == "kontext":
@@ -918,6 +930,39 @@ class Flux(ImageModelFoundation):
                     "add_v_proj",
                     "to_out.0",
                     "to_add_out",
+                ]
+            elif self.config.flux_lora_target == "dsy-kontext":
+                # Match Kontext preset layer coverage (fused QKV variant)
+                return [
+                    "to_qkv",
+                    "add_qkv_proj",
+                    "to_out.0",
+                    "to_add_out",
+                    "ff.net.0.proj",
+                    "ff.net.2",
+                    "ff_context.net.0.proj",
+                    "ff_context.net.2",
+                    "proj_mlp",
+                    "proj_out",
+                    "norm.linear",
+                    "norm1.linear",
+                    "norm1_context.linear",
+                ]
+            elif self.config.flux_lora_target == "dsy-flux":
+                # Non‑fused Q/K/V projections and FF layers (legacy non‑fused mapping)
+                return [
+                    "to_q",
+                    "to_k",
+                    "to_v",
+                    "add_q_proj",
+                    "add_k_proj",
+                    "add_v_proj",
+                    "to_out.0",
+                    "to_add_out",
+                    "ff.net.0.proj",
+                    "ff.net.2",
+                    "ff_context.net.0.proj",
+                    "ff_context.net.2",
                 ]
             elif self.config.flux_lora_target == "context":
                 # i think these are the text input layers.

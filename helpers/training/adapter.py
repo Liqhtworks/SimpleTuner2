@@ -77,8 +77,20 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "proj_mlp",
                 "proj_out",
             ]
-        elif args.flux_lora_target == "fal":
-            # from fal-ai, possibly required to continue finetuning one.
+        elif args.flux_lora_target == "dsy-kontext":
+            # Match Kontext preset (fused qkv + FF in double blocks)
+            target_modules = [
+                "to_qkv",
+                "add_qkv_proj",
+                "to_out.0",
+                "to_add_out",
+                "ff.net.0.proj",
+                "ff.net.2",
+                "ff_context.net.0.proj",
+                "ff_context.net.2",
+            ]
+        elif args.flux_lora_target == "dsy-flux":
+            # Non-fused Q/K/V projections and FF layers (legacy non-fused mapping)
             target_modules = [
                 "to_q",
                 "to_k",
@@ -94,7 +106,7 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "ff_context.net.2",
             ]
         elif args.flux_lora_target == "daisy":
-            # from fal-ai, possibly required to continue finetuning one.
+            # legacy mapping used in some community presets.
             target_modules = [
                 "single_transformer_blocks.9.attn.to_q",
                 "single_transformer_blocks.9.attn.to_k",
@@ -122,7 +134,7 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "ff_context.net.2",
             ]
         elif args.flux_lora_target == "daisy-tiny":
-            # from fal-ai, possibly required to continue finetuning one.
+            # legacy mapping used in some community presets.
             target_modules = [
                 "single_transformer_blocks.9.attn.to_q",
                 "single_transformer_blocks.9.attn.to_k",
