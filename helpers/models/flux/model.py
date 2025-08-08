@@ -866,7 +866,7 @@ class Flux(ImageModelFoundation):
         # Ensure settings match expected behaviour for specific LoRA presets
         if (
             getattr(self.config, "model_type", None) == "lora"
-            and getattr(self.config, "flux_lora_target", None) == "fal-kontext-gpt"
+            and getattr(self.config, "flux_lora_target", None) == "dsy-kontext"
         ):
             # FAL trainers use fused QKV projections; enable it automatically
             if not getattr(self.config, "fuse_qkv_projections", False):
@@ -931,31 +931,38 @@ class Flux(ImageModelFoundation):
                     "to_out.0",
                     "to_add_out",
                 ]
-            elif self.config.flux_lora_target == "fal-kontext-gpt":
-                # Match FAL trainer layer coverage
-                # - fused QKV projections for attention in both streams
-                # - attention output projections (to_out / to_add_out)
-                # - feed‑forward (ff / ff_context) layers
-                # - single‑block MLP projections and output
-                # - layer‑norm modulation linears (where present)
+            elif self.config.flux_lora_target == "dsy-kontext":
+                # Match FAL trainer layer coverage (fused QKV variant)
                 return [
-                    # attention (fused)
                     "to_qkv",
                     "add_qkv_proj",
                     "to_out.0",
                     "to_add_out",
-                    # feed‑forward (double blocks)
                     "ff.net.0.proj",
                     "ff.net.2",
                     "ff_context.net.0.proj",
                     "ff_context.net.2",
-                    # single‑block mlp
                     "proj_mlp",
                     "proj_out",
-                    # norm modulation linears
                     "norm.linear",
                     "norm1.linear",
                     "norm1_context.linear",
+                ]
+            elif self.config.flux_lora_target == "dsy-flux":
+                # Non‑fused Q/K/V projections and FF layers (legacy FAL mapping)
+                return [
+                    "to_q",
+                    "to_k",
+                    "to_v",
+                    "add_q_proj",
+                    "add_k_proj",
+                    "add_v_proj",
+                    "to_out.0",
+                    "to_add_out",
+                    "ff.net.0.proj",
+                    "ff.net.2",
+                    "ff_context.net.0.proj",
+                    "ff_context.net.2",
                 ]
             elif self.config.flux_lora_target == "context":
                 # i think these are the text input layers.

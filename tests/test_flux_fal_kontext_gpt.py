@@ -6,7 +6,7 @@ from helpers.training.adapter import determine_adapter_target_modules
 from helpers.models.flux.model import Flux
 
 
-class TestFluxFalKontextGpt(unittest.TestCase):
+class TestFluxDsyKontext(unittest.TestCase):
     def setUp(self):
         self.expected_targets = [
             "to_qkv",
@@ -19,17 +19,17 @@ class TestFluxFalKontextGpt(unittest.TestCase):
             "ff_context.net.2",
         ]
 
-    def test_adapter_target_modules_fal_kontext_gpt(self):
+    def test_adapter_target_modules_dsy_kontext(self):
         args = SimpleNamespace(
             model_family="flux",
-            flux_lora_target="fal-kontext-gpt",
+            flux_lora_target="dsy-kontext",
         )
         # trigger transformer branch by passing a non-None transformer
         out = determine_adapter_target_modules(args, unet=None, transformer=object())
         for key in self.expected_targets:
             self.assertIn(key, out)
 
-    def test_flux_get_lora_target_layers_fal_kontext_gpt(self):
+    def test_flux_get_lora_target_layers_dsy_kontext(self):
         # Create an instance without invoking __init__ to avoid heavy setup
         flux = Flux.__new__(Flux)
         flux.DEFAULT_LORA_TARGET = ["to_k", "to_q", "to_v", "to_out.0", "to_qkv"]
@@ -38,7 +38,7 @@ class TestFluxFalKontextGpt(unittest.TestCase):
             controlnet=False,
             control=False,
             lora_type="standard",
-            flux_lora_target="fal-kontext-gpt",
+            flux_lora_target="dsy-kontext",
         )
         layers = Flux.get_lora_target_layers(flux)
         # Ensure all expected keys are present and a couple of unique ones too
@@ -54,7 +54,7 @@ class TestFluxFalKontextGpt(unittest.TestCase):
         flux.config = SimpleNamespace(
             # core flags used by the logic under test
             model_type="lora",
-            flux_lora_target="fal-kontext-gpt",
+            flux_lora_target="dsy-kontext",
             fuse_qkv_projections=False,
             # flags to bypass other behaviours in check_user_config
             unet_attention_slice=False,

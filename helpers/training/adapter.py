@@ -77,11 +77,27 @@ def determine_adapter_target_modules(args, unet, transformer):
                 "proj_mlp",
                 "proj_out",
             ]
-        elif args.flux_lora_target == "fal-kontext-gpt":
+        elif args.flux_lora_target == "dsy-kontext":
             # Match FAL trainer (fused qkv + FF in double blocks)
             target_modules = [
                 "to_qkv",
                 "add_qkv_proj",
+                "to_out.0",
+                "to_add_out",
+                "ff.net.0.proj",
+                "ff.net.2",
+                "ff_context.net.0.proj",
+                "ff_context.net.2",
+            ]
+        elif args.flux_lora_target == "dsy-flux":
+            # Non-fused Q/K/V projections and FF layers (legacy FAL mapping)
+            target_modules = [
+                "to_q",
+                "to_k",
+                "to_v",
+                "add_q_proj",
+                "add_k_proj",
+                "add_v_proj",
                 "to_out.0",
                 "to_add_out",
                 "ff.net.0.proj",
