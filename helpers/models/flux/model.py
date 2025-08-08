@@ -868,10 +868,10 @@ class Flux(ImageModelFoundation):
             getattr(self.config, "model_type", None) == "lora"
             and getattr(self.config, "flux_lora_target", None) == "dsy-kontext"
         ):
-            # FAL trainers use fused QKV projections; enable it automatically
+            # Kontext preset uses fused QKV projections; enable it automatically
             if not getattr(self.config, "fuse_qkv_projections", False):
                 logger.warning(
-                    "Enabling fused QKV projections to match FAL LoRA target expectations."
+                    "Enabling fused QKV projections to match Kontext preset expectations."
                 )
                 self.config.fuse_qkv_projections = True
 
@@ -932,7 +932,7 @@ class Flux(ImageModelFoundation):
                     "to_add_out",
                 ]
             elif self.config.flux_lora_target == "dsy-kontext":
-                # Match FAL trainer layer coverage (fused QKV variant)
+                # Match Kontext preset layer coverage (fused QKV variant)
                 return [
                     "to_qkv",
                     "add_qkv_proj",
@@ -949,7 +949,7 @@ class Flux(ImageModelFoundation):
                     "norm1_context.linear",
                 ]
             elif self.config.flux_lora_target == "dsy-flux":
-                # Non‑fused Q/K/V projections and FF layers (legacy FAL mapping)
+                # Non‑fused Q/K/V projections and FF layers (legacy non‑fused mapping)
                 return [
                     "to_q",
                     "to_k",
