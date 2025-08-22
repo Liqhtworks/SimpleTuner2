@@ -1436,16 +1436,31 @@ def configure_multi_databackend(
         ):
             info_log(f"Skipping disabled data backend {backend['id']} in config file.")
             continue
-        if "conditioning_data" in backend and backend[
-            "conditioning_data"
-        ] not in StateTracker.get_data_backends(_type="conditioning"):
-            raise ValueError(
-                f"Conditioning data backend {backend['conditioning_data']} not found in data backend list: {StateTracker.get_data_backends(_type='conditionin')}."
-            )
         if "conditioning_data" in backend:
+            # Accept either a single id or a list of ids for conditioning_data
+            conditioning_value = backend["conditioning_data"]
+            if isinstance(conditioning_value, list):
+                conditioning_ids = conditioning_value
+            else:
+                conditioning_ids = [conditioning_value]
+
+            # Validate all provided conditioning backend ids exist
+            available_conditioning = StateTracker.get_data_backends(_type="conditioning")
+            missing = [cid for cid in conditioning_ids if cid not in available_conditioning]
+            if len(missing) > 0:
+                raise ValueError(
+                    f"Conditioning data backend(s) {missing} not found in data backend list: {list(available_conditioning.keys())}."
+                )
+
+            # Use the first provided conditioning backend if multiple are specified
+            selected_conditioning_id = conditioning_ids[0]
+            if len(conditioning_ids) > 1:
+                info_log(
+                    f"Backend {backend['id']} provided multiple conditioning_data entries {conditioning_ids}; using '{selected_conditioning_id}'."
+                )
             has_conditioning_dataset = True
             StateTracker.set_conditioning_dataset(
-                backend["id"], backend["conditioning_data"]
+                backend["id"], selected_conditioning_id
             )
             info_log(
                 f"Successfully configured conditioning image dataset for {backend['id']}"
