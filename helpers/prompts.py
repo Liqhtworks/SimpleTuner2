@@ -305,6 +305,9 @@ class PromptHandler:
         Returns:
             _type_: _description_
         """
+        # Allow caption_strategy to be None/"none" to indicate no captions
+        if caption_strategy in (None, "none", "", False):
+            return ""
         if caption_strategy == "filename":
             instance_prompt = PromptHandler.prepare_instance_prompt_from_filename(
                 image_path=image_path,
@@ -352,6 +355,9 @@ class PromptHandler:
         instance_prompt: str = None,
     ) -> list:
         captions = []
+        # If no captions are desired, return empty immediately
+        if caption_strategy in (None, "none", "", False):
+            return [], []
         images_missing_captions = []
         all_image_files = StateTracker.get_image_files(
             data_backend_id=data_backend.id
